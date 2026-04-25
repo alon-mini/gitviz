@@ -15,5 +15,8 @@ coverage/
 .vscode/
 Thumbs.db
 
+# Chrome Web Store upload archives
+*-chrome-web-store.zip
+
 # Windows alternate data stream metadata
 *:Zone.Identifier

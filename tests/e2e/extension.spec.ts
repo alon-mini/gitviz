@@ -89,10 +89,10 @@ test.describe('GitHub Repo Visibility extension', () => {
       if (await rateLimitNotice.isVisible()) {
         await expect(rateLimitNotice).toBeVisible();
       } else {
-        await expect(panel.getByText('Stars')).toBeVisible();
-        await expect(panel.getByText('Forks')).toBeVisible();
-        await expect(panel.getByText('Watchers')).toBeVisible();
-        await expect(panel.getByText('Community')).toBeVisible();
+        await expect(panel.getByText('Stars', { exact: true })).toBeVisible();
+        await expect(panel.getByText('Forks', { exact: true })).toBeVisible();
+        await expect(panel.getByText('Watchers', { exact: true })).toBeVisible();
+        await expect(panel.getByText('Community', { exact: true })).toBeVisible();
         await expect(panel.getByText('Activity', { exact: true })).toBeVisible();
       }
       expect(apiRequests.some((url) => url === 'https://api.github.com/repos/pjasicek/OpenClaw')).toBe(true);
