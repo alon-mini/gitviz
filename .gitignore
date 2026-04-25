@@ -1,0 +1,19 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+coverage/
+.vite/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+
+# Local editor and OS files
+.idea/
+.vscode/
+Thumbs.db
+
+# Windows alternate data stream metadata
+*:Zone.Identifier
