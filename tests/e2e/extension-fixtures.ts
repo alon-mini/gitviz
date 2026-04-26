@@ -161,7 +161,7 @@ export async function navigateToOpenClawRepo(page: Page): Promise<void> {
           pushedAt: new Date().toISOString(),
           pushedDaysAgo: 0,
           latestRelease: { status: 'available', name: 'v1.0.0', publishedAt: new Date().toISOString(), daysAgo: 0 },
-          community: { quality: 'exact', healthPercentage: 86, files: [
+          community: { quality: 'exact', healthPercentage: 86, reason: 'Community profile loaded.', files: [
             { label: 'README', present: true },
             { label: 'Contributing', present: true },
             { label: 'Code of conduct', present: true },

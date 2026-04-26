@@ -14,6 +14,24 @@ export type AppState = {
   error?: string;
 };
 
+export type RealStarTone = 'strong' | 'mixed' | 'weak';
+
+export type RealStarFactor = {
+  label: string;
+  score: number;
+  weight: number;
+  description: string;
+};
+
+export type RealStarMetric = {
+  score: number;
+  label: string;
+  tone: RealStarTone;
+  headline: string;
+  summary: string;
+  factors: RealStarFactor[];
+};
+
 export class App {
   private state: AppState;
 
@@ -95,9 +113,9 @@ export class App {
           <div class="grv-brand">
             <span class="grv-logo" aria-hidden="true">${visibilityIcon()}</span>
             <div class="grv-title-stack">
-              <p class="grv-eyebrow">Repository visibility</p>
+              <p class="grv-eyebrow">Real Star</p>
               <h2>${escapeHtml(repoName)}</h2>
-              <p class="grv-subtitle">Live GitHub signals summarized for quick repository triage.</p>
+              <p class="grv-subtitle">Live GitHub signals summarized into an interaction-quality score.</p>
               <div class="grv-header-meta" aria-label="Data source and privacy details">
                 <span>${sourceIcon()} Public GitHub API</span>
                 <span>${shieldIcon()} Anonymous request budget</span>
@@ -122,27 +140,27 @@ export class App {
   }
 
   private renderOverview(summary: RepoSummaryView): string {
-    const score = summary.community.healthPercentage ?? 0;
+    const realStar = buildRealStarMetric(summary, this.state.authenticity);
     return `
-      <section class="grv-overview" aria-label="Repository visibility overview">
+      <section class="grv-overview" aria-label="Real Star overview">
         <div class="grv-overview-copy">
-          <p class="grv-kicker">Visibility snapshot</p>
-          <h3>${escapeHtml(visibilityHeadline(summary))}</h3>
-          <p>${escapeHtml(visibilityCopy(summary))}</p>
+          <p class="grv-kicker">Real Star snapshot</p>
+          <h3>${escapeHtml(realStar.headline)}</h3>
+          <p>${escapeHtml(realStar.summary)}</p>
         </div>
-        <div class="grv-score-card" aria-label="Community trust score ${escapeHtml(communityText(summary))}">
-          <div class="grv-score-ring" style="--grv-score: ${score}" aria-hidden="true">
-            <span>${escapeHtml(communityText(summary))}</span>
+        <div class="grv-score-card" aria-label="Real Star score ${realStar.score} out of 100">
+          <div class="grv-score-ring" style="--grv-score: ${realStar.score}" aria-hidden="true">
+            <span>${realStar.score}</span>
           </div>
           <div>
-            <strong>Trust baseline</strong>
-            <p>${escapeHtml(summary.community.reason ?? 'Community profile health from public repository files.')}</p>
+            <strong>Real Star</strong>
+            <p>${escapeHtml(realStarScoreCopy(Boolean(this.state.authenticity)))}</p>
           </div>
         </div>
         <div class="grv-overview-stats" aria-label="Key repository signals">
           ${signalPill('Interest', formatNumber(summary.stars), 'stars')}
-          ${signalPill('Commit signal', summary.activity.headline, summary.activity.quality)}
-          ${signalPill('Trust score', communityText(summary), summary.community.quality)}
+          ${signalPill('Activity', summary.activity.headline, summary.activity.quality)}
+          ${signalPill('Authenticity', this.state.authenticity ? `${this.state.authenticity.score}/100` : 'Loading', this.state.authenticity ? this.state.authenticity.tone : 'pending')}
         </div>
       </section>
     `;
@@ -167,6 +185,7 @@ export class App {
 
     const summary = this.state.summary;
     if (!summary) return '';
+    const realStar = buildRealStarMetric(summary, this.state.authenticity);
 
     return `
       <div class="grv-content">
@@ -178,12 +197,12 @@ export class App {
           ${this.renderBadges(summary)}
         </div>
         <section class="grv-grid" aria-label="Repository summary metrics">
+          ${metric('Real Star', realStar.label, `Composite score from ${realStar.factors.length} available repository signals.`, realStarToneLabel(realStar.tone))}
           ${metric('Stars', formatNumber(summary.stars), 'Exact public stargazer count.', 'Public interest')}
           ${metric('Forks', formatNumber(summary.forks), 'Exact public fork count.', 'Reuse signal')}
           ${metric('Watchers', formatNumber(summary.watchers), 'Uses subscribers_count, not watchers_count, so it reflects true watchers.', 'Subscriber count')}
           ${metric('Last push', formatRelativeDays(summary.pushedDaysAgo), 'From repository pushed_at.', 'Maintenance recency')}
           ${metric('Release', releaseText(summary), 'Latest release endpoint; no releases is a normal state.', 'Versioning signal')}
-          ${metric('Community', communityText(summary), summary.community.reason ?? 'GitHub community profile health percentage.', 'Trust baseline')}
         </section>
         <div class="grv-section-stack">
           ${this.renderAuthenticitySection()}
@@ -210,7 +229,7 @@ export class App {
 
   private renderAuthenticityHeaderBadge(): string {
     const authenticity = this.state.authenticity;
-    if (!authenticity) return `<span class="grv-trust-badge grv-trust-loading" role="status">${shieldIcon()} Trust scan</span>`;
+    if (!authenticity) return `<span class="grv-trust-badge grv-trust-loading" role="status">${shieldIcon()} Authenticity scan</span>`;
     return `<span class="grv-trust-badge grv-trust-${authenticity.tone}" title="${escapeHtml(authenticity.summary)}">${shieldIcon()} ${escapeHtml(trustBadgeLabel(authenticity))}</span>`;
   }
 
@@ -219,7 +238,7 @@ export class App {
     if (!authenticity) {
       return `
         <section class="grv-section grv-trust-section" aria-label="Repository authenticity trust breakdown">
-          ${sectionHeader('Trust Breakdown', this.state.authenticityLoading ? 'loading' : 'unavailable')}
+          ${sectionHeader('Authenticity Breakdown', this.state.authenticityLoading ? 'loading' : 'unavailable')}
           <p class="grv-section-copy">Loading authenticity ratios and recent stargazer account sample...</p>
         </section>
       `;
@@ -240,7 +259,7 @@ export class App {
         </div>
         <details class="grv-trust-details">
           <summary>
-            <span>${shieldIcon()} Trust Breakdown</span>
+            <span>${shieldIcon()} Authenticity Breakdown</span>
             ${statusChip(trustToneLabel(authenticity.tone), trustChipTone(authenticity.tone))}
           </summary>
           <div class="grv-trust-grid">
@@ -281,18 +300,26 @@ export class App {
         ${this.state.starLoading ? '<p class="grv-section-copy">Loading recent star trend...</p>' : ''}
         ${stars ? `<p class="grv-section-copy">${formatNumber(stars.totalInWindow)} stars in ${stars.days} days (${stars.quality}; ${stars.pagesLoaded} pages loaded).</p><div class="grv-chart-card">${renderSparkline(stars.buckets.map((bucket) => bucket.count), 'Recent daily star trend')}</div>${stars.message ? `<p class="grv-muted">${escapeHtml(stars.message)}</p>` : ''}` : '<p class="grv-muted">Star trend loads only after expansion to preserve the anonymous request budget.</p>'}
       </section>
-      <section class="grv-section" aria-label="Community files">
-        ${sectionHeader('Trust signals', summary.community.quality, summary.community.reason)}
-        <ul class="grv-files">
-          ${summary.community.files.map((file) => `<li><span class="grv-file-status" data-present="${file.present}" aria-label="${file.present ? 'Present' : 'Missing'}"></span><span>${escapeHtml(file.label)}</span></li>`).join('')}
-        </ul>
-      </section>
+      ${this.renderRealStarFactors(summary)}
     `;
   }
 
   private renderNotices(summary: RepoSummaryView): string {
     if (!summary.notices.length) return '';
-    return `<div class="grv-notices" aria-label="Repository visibility notices">${summary.notices.map((notice) => `<p class="grv-notice grv-notice-${notice.kind}" role="${notice.kind === 'error' || notice.kind === 'rate_limited' ? 'alert' : 'status'}">${escapeHtml(notice.message)}</p>`).join('')}</div>`;
+    return `<div class="grv-notices" aria-label="Repository notices">${summary.notices.map((notice) => `<p class="grv-notice grv-notice-${notice.kind}" role="${notice.kind === 'error' || notice.kind === 'rate_limited' ? 'alert' : 'status'}">${escapeHtml(notice.message)}</p>`).join('')}</div>`;
+  }
+
+  private renderRealStarFactors(summary: RepoSummaryView): string {
+    const realStar = buildRealStarMetric(summary, this.state.authenticity);
+    return `
+      <section class="grv-section" aria-label="Real Star factors">
+        ${sectionHeader('Real Star factors', this.state.authenticity ? 'sampled' : 'partial', this.state.authenticity ? 'Includes authenticity signals.' : 'Authenticity will be folded in when it finishes loading.')}
+        <p class="grv-section-copy">${escapeHtml(realStar.summary)}</p>
+        <ul class="grv-factors">
+          ${realStar.factors.map((factor) => `<li><span><strong>${escapeHtml(factor.label)}</strong><small>${escapeHtml(factor.description)}</small></span><em>${factor.score}/100</em></li>`).join('')}
+        </ul>
+      </section>
+    `;
   }
 }
 
@@ -310,9 +337,9 @@ function authenticityMetric(check: RepositoryAuthenticityView['ratios']['forkToS
 }
 
 function trustBadgeLabel(authenticity: RepositoryAuthenticityView): string {
-  if (authenticity.tone === 'suspicious') return 'Trust: suspicious';
-  if (authenticity.tone === 'moderate') return 'Trust: mixed';
-  return 'Trust: healthy';
+  if (authenticity.tone === 'suspicious') return 'Authenticity: suspicious';
+  if (authenticity.tone === 'moderate') return 'Authenticity: mixed';
+  return 'Authenticity: healthy';
 }
 
 function trustToneLabel(tone: RepositoryAuthenticityView['tone']): string {
@@ -377,25 +404,161 @@ function cacheLabel(cacheState: RepoSummaryView['cacheState']): string {
   return 'New scan';
 }
 
+function realStarToneLabel(tone: RealStarTone): string {
+  if (tone === 'strong') return 'Strong';
+  if (tone === 'mixed') return 'Mixed';
+  return 'Weak';
+}
+
+export function buildRealStarMetric(summary: RepoSummaryView, authenticity?: RepositoryAuthenticityView): RealStarMetric {
+  const factors: RealStarFactor[] = [
+    {
+      label: 'Interest',
+      score: scaleLog(summary.stars, 1_000),
+      weight: 1,
+      description: `${formatNumber(summary.stars)} public stars`
+    },
+    {
+      label: 'Reuse',
+      score: scaleLog(summary.forks, 250),
+      weight: 1,
+      description: `${formatNumber(summary.forks)} forks`
+    },
+    {
+      label: 'Watcher engagement',
+      score: summary.stars > 0 ? clamp(Math.round((summary.watchers / summary.stars) / 0.03 * 100)) : scaleLog(summary.watchers, 50),
+      weight: 0.8,
+      description: `${formatNumber(summary.watchers)} true watchers`
+    },
+    {
+      label: 'Maintenance recency',
+      score: recencyScore(summary.pushedDaysAgo),
+      weight: 1.15,
+      description: `Last push ${formatRelativeDays(summary.pushedDaysAgo, 'unavailable')}`
+    },
+    {
+      label: 'Release health',
+      score: releaseScore(summary),
+      weight: 0.85,
+      description: summary.latestRelease.status === 'available' ? `Latest release ${formatRelativeDays(summary.latestRelease.daysAgo)}` : releaseText(summary)
+    },
+    {
+      label: 'Activity',
+      score: activityScore(summary),
+      weight: 1.15,
+      description: summary.activity.headline
+    },
+    {
+      label: 'Responsiveness',
+      score: responsivenessScore(summary),
+      weight: 1,
+      description: `${summary.responsiveness.mergedPrCount}/${summary.responsiveness.prSampleSize} PRs merged, ${summary.responsiveness.closedIssueCount}/${summary.responsiveness.issueSampleSize} issues closed`
+    }
+  ];
+
+  if (authenticity) {
+    factors.push({
+      label: 'Authenticity',
+      score: clamp(authenticity.score),
+      weight: 1.5,
+      description: authenticity.headline
+    });
+  }
+
+  if (summary.archived) {
+    factors.push({ label: 'Archive status', score: 20, weight: 1.2, description: 'Repository is archived' });
+  }
+
+  const weightedTotal = factors.reduce((sum, factor) => sum + factor.score * factor.weight, 0);
+  const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0);
+  const score = clamp(Math.round(weightedTotal / totalWeight));
+  const tone: RealStarTone = score >= 72 ? 'strong' : score >= 45 ? 'mixed' : 'weak';
+  const label = `${score}/100`;
+
+  return {
+    score,
+    label,
+    tone,
+    factors,
+    headline: realStarHeadline(tone),
+    summary: realStarSummary(summary, authenticity, label)
+  };
+}
+
+function realStarHeadline(tone: RealStarTone): string {
+  if (tone === 'strong') return 'Strong Real Star signal';
+  if (tone === 'mixed') return 'Mixed Real Star signal';
+  return 'Weak Real Star signal';
+}
+
+function realStarSummary(summary: RepoSummaryView, authenticity: RepositoryAuthenticityView | undefined, label: string): string {
+  const authenticityText = authenticity ? `authenticity ${authenticity.score}/100` : 'authenticity still loading';
+  return `Real Star is ${label}, combining stars, forks, watchers, maintenance, releases, activity, responsiveness, and ${authenticityText}.`;
+}
+
+function realStarScoreCopy(hasAuthenticity: boolean): string {
+  return hasAuthenticity
+    ? 'Composite score from all available repository metrics.'
+    : 'Composite score is visible immediately and updates when authenticity finishes loading.';
+}
+
+function scaleLog(value: number, strongAt: number): number {
+  if (value <= 0) return 0;
+  return clamp(Math.round((Math.log10(value + 1) / Math.log10(strongAt + 1)) * 100));
+}
+
+function recencyScore(days: number | null): number {
+  if (days === null) return 35;
+  if (days <= 7) return 100;
+  if (days <= 30) return 85;
+  if (days <= 90) return 65;
+  if (days <= 180) return 45;
+  if (days <= 365) return 25;
+  return 10;
+}
+
+function releaseScore(summary: RepoSummaryView): number {
+  if (summary.latestRelease.status === 'available') return recencyScore(summary.latestRelease.daysAgo);
+  if (summary.latestRelease.status === 'none') return 45;
+  return 35;
+}
+
+function activityScore(summary: RepoSummaryView): number {
+  if (summary.activity.status === 'preparing') return 55;
+  if (summary.activity.status === 'limited') return 45;
+  if (summary.activity.status !== 'available') return 25;
+  const commits = summary.activity.lastFourWeeksCommits ?? 0;
+  if (commits >= 20) return 100;
+  if (commits >= 8) return 80;
+  if (commits >= 3) return 60;
+  if (commits >= 1) return 40;
+  return 20;
+}
+
+function responsivenessScore(summary: RepoSummaryView): number {
+  const responsiveness = summary.responsiveness;
+  const prScore = responsiveness.prSampleSize > 0 ? (responsiveness.mergedPrCount / responsiveness.prSampleSize) * 100 : 45;
+  const issueScore = responsiveness.issueSampleSize > 0 ? (responsiveness.closedIssueCount / responsiveness.issueSampleSize) * 100 : 45;
+  const mergeSpeedScore = responsiveness.medianMergeHours === null
+    ? 50
+    : responsiveness.medianMergeHours <= 24
+      ? 100
+      : responsiveness.medianMergeHours <= 72
+        ? 75
+        : responsiveness.medianMergeHours <= 168
+          ? 55
+          : 30;
+  return clamp(Math.round(prScore * 0.35 + issueScore * 0.35 + mergeSpeedScore * 0.3));
+}
+
+function clamp(value: number): number {
+  return Math.max(0, Math.min(100, value));
+}
+
 function releaseText(summary: RepoSummaryView): string {
   if (summary.latestRelease.status === 'none') return 'No releases';
   if (summary.latestRelease.status === 'unavailable') return 'Unavailable';
   return formatRelativeDays(summary.latestRelease.daysAgo);
-}
-
-function visibilityHeadline(summary: RepoSummaryView): string {
-  if (summary.archived) return 'Archived repository with historical signals';
-  if (summary.activity.status === 'preparing') return 'GitHub is preparing activity data';
-  if (summary.activity.status === 'limited') return 'Activity signal is partially available';
-  if (summary.pushedDaysAgo !== null && summary.pushedDaysAgo <= 30) return 'Recently maintained and discoverable';
-  if (summary.community.healthPercentage !== null && summary.community.healthPercentage >= 70) return 'Strong community trust signals';
-  return 'Repository signals need a closer look';
-}
-
-function visibilityCopy(summary: RepoSummaryView): string {
-  const recency = formatRelativeDays(summary.pushedDaysAgo, 'push recency unavailable');
-  const release = releaseText(summary).toLowerCase();
-  return `${formatNumber(summary.stars)} stars, last push ${recency}, release ${release}. Community profile is ${communityText(summary).toLowerCase()}.`;
 }
 
 function formatRelativeDays(days: number | null, empty = 'Unavailable'): string {
@@ -411,11 +574,6 @@ function formatDurationHours(hours: number | null): string {
   if (hours < 48) return `${Math.round(hours)} hr`;
   const days = hours / 24;
   return `${days.toFixed(days < 10 ? 1 : 0)} days`;
-}
-
-function communityText(summary: RepoSummaryView): string {
-  if (summary.community.healthPercentage === null) return 'Unavailable';
-  return `${summary.community.healthPercentage}%`;
 }
 
 function formatNumber(value: number): string {
@@ -448,10 +606,11 @@ function shieldIcon(): string {
 
 function metricIcon(label: string): string {
   const icons: Record<string, string> = {
+    'Real Star': '<svg viewBox="0 0 16 16" focusable="false"><path d="m8 1.8 1.72 3.48 3.84.56-2.78 2.7.66 3.82L8 10.55l-3.44 1.81.66-3.82-2.78-2.7 3.84-.56L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg>',
     Stars: '<svg viewBox="0 0 16 16" focusable="false"><path d="m8 1.8 1.72 3.48 3.84.56-2.78 2.7.66 3.82L8 10.55l-3.44 1.81.66-3.82-2.78-2.7 3.84-.56L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg>',
     Forks: '<svg viewBox="0 0 16 16" focusable="false"><path d="M5 3.25a1.75 1.75 0 1 1-2.2 1.68A1.75 1.75 0 0 1 5 3.25Zm6 0a1.75 1.75 0 1 1-1.75 1.75A1.75 1.75 0 0 1 11 3.25ZM5 12.75a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5Zm0-3.5V6.75m6-1.75v1.5A2.5 2.5 0 0 1 8.5 9H5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     Watchers: visibilityIcon(),
-    Community: shieldIcon(),
+    Authenticity: shieldIcon(),
     Release: '<svg viewBox="0 0 16 16" focusable="false"><path d="M4.25 2.75h5.7l1.8 1.8v8.7h-7.5a2 2 0 0 1-2-2v-6.5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/><path d="M9.75 2.9v1.85h1.85M5.25 8h5.5M5.25 10.5h3.5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     'Last push': '<svg viewBox="0 0 16 16" focusable="false"><path d="M8 2.25a5.75 5.75 0 1 0 5.75 5.75A5.75 5.75 0 0 0 8 2.25Zm0 2.5V8l2.15 1.25" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     'Merged PRs': '<svg viewBox="0 0 16 16" focusable="false"><path d="M4.75 3.25v6.5a2.5 2.5 0 0 0 2.5 2.5h4m0 0-1.75-1.75m1.75 1.75L9.5 14M11.25 3.25v4.5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4.75" cy="3.25" r="1.5" fill="none" stroke="currentColor" stroke-width="1.35"/><circle cx="11.25" cy="3.25" r="1.5" fill="none" stroke="currentColor" stroke-width="1.35"/></svg>',
@@ -670,6 +829,11 @@ const styles = `
   .grv-files li { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .grv-file-status { display: inline-block; flex: 0 0 auto; width: 10px; height: 10px; border-radius: 999px; background: var(--grv-border-strong); }
   .grv-file-status[data-present="true"] { background: var(--grv-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--grv-success-soft) 84%, transparent); }
+  .grv-factors { display: grid; gap: 8px; margin: 10px 0 0; padding-left: 0; list-style: none; }
+  .grv-factors li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; border: 1px solid color-mix(in srgb, var(--grv-border) 72%, transparent); border-radius: 12px; padding: 9px 10px; background: var(--grv-surface); }
+  .grv-factors strong, .grv-factors small { display: block; }
+  .grv-factors small { margin-top: 2px; color: var(--grv-text-muted); font-size: 11px; font-weight: 650; }
+  .grv-factors em { flex: 0 0 auto; color: var(--grv-accent); font-style: normal; font-weight: 850; font-variant-numeric: tabular-nums; }
   .grv-loading { display: flex; align-items: center; gap: 10px; padding: 16px 20px 0; color: var(--grv-text-muted); font-weight: 650; }
   .grv-spinner { width: 18px; height: 18px; border: 2px solid var(--grv-border); border-top-color: var(--grv-accent); border-radius: 999px; animation: grv-spin .8s linear infinite; }
   .grv-grid-skeleton { grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 14px 20px 20px; }
