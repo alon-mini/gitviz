@@ -16,7 +16,8 @@ export function mountRoot(): HTMLElement | null {
 }
 
 function findMountTarget(): Element | null {
-  return document.querySelector('[data-testid="repository-container-header"]')
+  return document.querySelector('#repository-container-header')
+    ?? document.querySelector('[data-testid="repository-container-header"]')
     ?? document.querySelector('.js-repo-nav')
     ?? document.querySelector('main .Layout-sidebar')
     ?? document.querySelector('main')

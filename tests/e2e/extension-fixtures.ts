@@ -226,7 +226,7 @@ export function minimalOpenClawRepoHtml(): string {
       <head><title>pjasicek/OpenClaw</title></head>
       <body>
         <main>
-          <div data-testid="repository-container-header">
+          <div id="repository-container-header">
             <strong>pjasicek/OpenClaw</strong>
             <ul class="pagehead-actions">
               <li><button id="repository-details-watch-button" type="button">Watch</button></li>
