@@ -23,21 +23,21 @@ test.describe('GitHub Repo Visibility extension', () => {
       });
 
       await navigateToOpenClawRepo(page);
-      await expect(page.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
+      await expect(page.locator('#repository-container-header').getByText('pjasicek/OpenClaw')).toBeVisible();
 
       const actionLabels = await page.locator('.pagehead-actions > li').evaluateAll((items) => items.map((item) => item.querySelector('button, a, summary')?.textContent?.trim().replace(/\s+/g, ' ')));
-      expect(actionLabels).toEqual(['Watch', 'Authenticity', 'Fork', 'Star']);
+      expect(actionLabels).toEqual(['Watch', 'Git Visibility', 'Fork', 'Star']);
       await expect(page.locator('#star-button')).toBeVisible();
-      const authenticityButton = page.locator('#github-repo-authenticity-inline-root').getByRole('button', { name: 'Repository authenticity' });
-      await expect(authenticityButton).toBeVisible();
-      await authenticityButton.click();
-      const authenticityDialog = page.getByRole('dialog', { name: 'Trust Breakdown' });
-      await expect(authenticityDialog.locator('.gra-kicker')).toHaveText('Repository Authenticity');
-      await expect(authenticityDialog.getByText('Healthy repository authenticity signals')).toBeVisible();
+      const visibilityButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: 'Git visibility' });
+      await expect(visibilityButton).toBeVisible();
+      await visibilityButton.click();
+      const visibilityDialog = page.getByRole('dialog', { name: 'Git visibility panel' });
+      await expect(visibilityDialog.getByText('Authenticity-first repository visibility')).toBeVisible();
 
-      const panel = page.locator('#github-repo-visibility-root');
+      const panel = visibilityDialog.locator('.gra-panel-root');
       await expect(panel).toBeVisible();
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
+      await expect(panel.getByText('Healthy repository authenticity signals')).toBeVisible();
       await expect(panel.getByText('Stars', { exact: true })).toBeVisible();
       await expect(panel.getByLabel('Stars: 1,234')).toBeVisible();
       await expect(panel.getByText('Watchers', { exact: true })).toBeVisible();
@@ -63,7 +63,10 @@ test.describe('GitHub Repo Visibility extension', () => {
       });
 
       await navigateToOpenClawRepo(page);
-      const panel = page.locator('#github-repo-visibility-root');
+      const visibilityButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: 'Git visibility' });
+      await expect(visibilityButton).toBeVisible();
+      await visibilityButton.click();
+      const panel = page.getByRole('dialog', { name: 'Git visibility panel' }).locator('.gra-panel-root');
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
       await panel.getByRole('button', { name: 'Show details' }).click();
 
@@ -90,10 +93,13 @@ test.describe('GitHub Repo Visibility extension', () => {
 
       await navigateToLiveOpenClawRepo(page);
 
-      const panel = page.locator('#github-repo-visibility-root');
+      const visibilityButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: 'Git visibility' });
+      await expect(visibilityButton).toBeVisible({ timeout: 20_000 });
+      await visibilityButton.click();
+
+      const panel = page.getByRole('dialog', { name: 'Git visibility panel' }).locator('.gra-panel-root');
       await expect(panel).toBeVisible({ timeout: 20_000 });
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
-      await expect(panel).toHaveAttribute('aria-label', 'GitHub repository visibility summary');
       await expect(panel.locator('.grv-panel')).toHaveAttribute('data-state', 'ready', { timeout: 20_000 });
       const rateLimitNotice = panel.getByText('Anonymous GitHub API limit reached. Showing cached data when available.');
       if (await rateLimitNotice.isVisible()) {

@@ -21,7 +21,7 @@
   },
   "private": true,
   "name": "github-repo-visibility",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A Manifest V3 Chrome extension that adds repository visibility signals to public GitHub repo pages.",
   "license": "MIT",
   "type": "module"
