@@ -19,4 +19,19 @@ Useful details include:
 
 ## Scope
 
-This project is a Chrome extension that runs on GitHub pages and calls the GitHub REST API. Reports involving unsafe page injection, data exposure, permission misuse, or supply-chain concerns are in scope.
+This project is a Chrome extension that runs on GitHub pages and calls the GitHub REST API. Reports involving unsafe page injection, data exposure, permission misuse, remote-code execution, or supply-chain concerns are in scope.
+
+## Security practices
+
+The extension is designed to keep permissions narrow and understandable:
+
+- It requests `storage` only for local cache and state.
+- It runs content scripts only on `https://github.com/*`.
+- It calls the official GitHub API at `https://api.github.com/*`.
+- It does not load or execute remotely hosted extension code.
+- It does not operate a developer-controlled backend for extension data.
+
+## Expected response
+
+Security reports will be reviewed as soon as practical. If a vulnerability is confirmed, a fix will be prepared for the default branch and included in the next Chrome Web Store submission.
+
