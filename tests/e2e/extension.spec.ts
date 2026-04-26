@@ -25,6 +25,16 @@ test.describe('GitHub Repo Visibility extension', () => {
       await navigateToOpenClawRepo(page);
       await expect(page.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
 
+      const actionLabels = await page.locator('.pagehead-actions > li').evaluateAll((items) => items.map((item) => item.querySelector('button, a, summary')?.textContent?.trim().replace(/\s+/g, ' ')));
+      expect(actionLabels).toEqual(['Watch', 'Authenticity', 'Fork', 'Star']);
+      await expect(page.locator('#star-button')).toBeVisible();
+      const authenticityButton = page.locator('#github-repo-authenticity-inline-root').getByRole('button', { name: 'Repository authenticity' });
+      await expect(authenticityButton).toBeVisible();
+      await authenticityButton.click();
+      const authenticityDialog = page.getByRole('dialog', { name: 'Trust Breakdown' });
+      await expect(authenticityDialog.locator('.gra-kicker')).toHaveText('Repository Authenticity');
+      await expect(authenticityDialog.getByText('Healthy repository authenticity signals')).toBeVisible();
+
       const panel = page.locator('#github-repo-visibility-root');
       await expect(panel).toBeVisible();
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();

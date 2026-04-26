@@ -144,7 +144,7 @@ export async function fetchStargazerSample(input: {
     if (graphQlSample) return graphQlSample;
   }
 
-  return fetchRestStargazerSample(input.repo, input.sampleSize, Boolean(input.githubToken));
+  return fetchRestStargazerSample(input.repo, input.sampleSize, input.githubToken ?? null);
 }
 
 async function fetchGraphQlStargazerSample(repo: RepoRef, sampleSize: number, githubToken: string): Promise<StargazerSample | null> {
@@ -169,7 +169,7 @@ async function fetchGraphQlStargazerSample(repo: RepoRef, sampleSize: number, gi
   const result = await githubPost<GraphQlStargazerResponse>(endpoints.graphql, {
     query,
     variables: { owner: repo.owner, name: repo.repo, sampleSize }
-  }, 'application/vnd.github+json');
+  }, 'application/vnd.github+json', githubToken);
 
   if (result.rateLimited) throw new AuthenticityRateLimitError('GitHub API limit reached while sampling stargazers.', result.retryAfterSeconds);
   if (!result.ok || !result.data?.data?.repository?.stargazers?.edges) return null;
@@ -190,16 +190,17 @@ async function fetchGraphQlStargazerSample(repo: RepoRef, sampleSize: number, gi
   };
 }
 
-async function fetchRestStargazerSample(repo: RepoRef, sampleSize: number, graphQlAttempted: boolean): Promise<StargazerSample> {
-  const stargazersResult = await githubGet<RestStargazer[]>(endpoints.recentStargazers(repo.owner, repo.repo, 1), undefined, 'application/vnd.github.star+json');
-  if (stargazersResult.rateLimited) throw new AuthenticityRateLimitError('GitHub API limit reached while sampling stargazers.', stargazersResult.retryAfterSeconds);
+async function fetchRestStargazerSample(repo: RepoRef, sampleSize: number, githubToken: string | null): Promise<StargazerSample> {
+  const notices: RepositoryAuthenticityView['notices'] = githubToken
+    ? [{ kind: 'partial', message: 'GraphQL stargazer sampling was unavailable; used REST fallback.' }]
+    : [{ kind: 'partial', message: 'Anonymous mode shows ratio-only authenticity checks to avoid exhausting GitHub API limits.' }];
 
-  const notices: RepositoryAuthenticityView['notices'] = [];
-  if (graphQlAttempted) {
-    notices.push({ kind: 'partial', message: 'GraphQL stargazer sampling was unavailable; used REST fallback.' });
-  } else {
-    notices.push({ kind: 'partial', message: 'Set a GitHub token in extension storage to enable one-query GraphQL sampling; using REST fallback.' });
+  if (!githubToken) {
+    return { requested: sampleSize, source: 'unavailable', users: [], notices };
   }
+
+  const stargazersResult = await githubGet<RestStargazer[]>(endpoints.recentStargazers(repo.owner, repo.repo, 1), undefined, 'application/vnd.github.star+json', githubToken);
+  if (stargazersResult.rateLimited) throw new AuthenticityRateLimitError('GitHub API limit reached while sampling stargazers.', stargazersResult.retryAfterSeconds);
 
   if (!stargazersResult.ok || !stargazersResult.data) {
     return { requested: sampleSize, source: 'unavailable', users: [], notices: [...notices, { kind: 'error', message: stargazersResult.error ?? 'Could not load stargazer sample.' }] };
@@ -212,7 +213,7 @@ async function fetchRestStargazerSample(repo: RepoRef, sampleSize: number, graph
   const users: SampledUser[] = [];
 
   for (const login of logins) {
-    const userResult = await githubGet<RestUser>(endpoints.users(login));
+    const userResult = await githubGet<RestUser>(endpoints.users(login), undefined, 'application/vnd.github+json', githubToken);
     if (userResult.rateLimited) throw new AuthenticityRateLimitError('GitHub API limit reached while loading sampled stargazer profiles.', userResult.retryAfterSeconds);
     if (userResult.ok && userResult.data) {
       users.push({

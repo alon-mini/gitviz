@@ -1,4 +1,4 @@
-const ROOT_ID = 'github-repo-visibility-root';
+export const ROOT_ID = 'github-repo-visibility-root';
 
 export function mountRoot(): HTMLElement | null {
   const existing = document.getElementById(ROOT_ID);

@@ -1,14 +1,14 @@
 import type { RepositoryAuthenticityView, RepoRef } from '../background/messages';
 import { emptyAuthenticity, requestAuthenticity } from './client';
 
-const ROOT_ID = 'github-repo-authenticity-inline-root';
+export const AUTHENTICITY_ROOT_ID = 'github-repo-authenticity-inline-root';
 
 export class TrustBreakdownWidget {
   private state: {
     authenticity?: RepositoryAuthenticityView;
     loading: boolean;
     open: boolean;
-  } = { loading: true, open: false };
+  } = { loading: false, open: false };
 
   constructor(private repo: RepoRef) {}
 
@@ -16,27 +16,19 @@ export class TrustBreakdownWidget {
     const root = this.ensureRoot();
     if (!root) return;
     this.render(root);
-    requestAuthenticity(this.repo).then((response) => {
-      if (response.ok && response.type === 'authenticity') {
-        this.state = { ...this.state, authenticity: response.data, loading: false };
-      } else if (!response.ok) {
-        this.state = { ...this.state, authenticity: emptyAuthenticity(this.repo, response.error), loading: false };
-      }
-      this.render(root);
-    });
   }
 
   private ensureRoot(): HTMLElement | null {
-    const existing = document.getElementById(ROOT_ID);
+    const existing = document.getElementById(AUTHENTICITY_ROOT_ID);
     if (existing) return existing;
 
-    const target = findStarButtonTarget();
+    const target = findWatchButtonTarget();
     if (!target) return null;
 
-    const root = document.createElement('span');
-    root.id = ROOT_ID;
+    const root = document.createElement(target.listItem ? 'li' : 'span');
+    root.id = AUTHENTICITY_ROOT_ID;
     root.setAttribute('aria-label', 'Repository authenticity trust breakdown');
-    target.insertAdjacentElement('afterend', root);
+    target.element.insertAdjacentElement('afterend', root);
     return root;
   }
 
@@ -45,8 +37,8 @@ export class TrustBreakdownWidget {
     root.innerHTML = `
       <style>${styles}</style>
       <span class="gra-wrap">
-        <button class="gra-badge gra-${authenticity?.tone ?? 'loading'}" type="button" aria-expanded="${this.state.open}" aria-haspopup="dialog">
-          ${shieldIcon()} ${escapeHtml(authenticity ? badgeLabel(authenticity) : 'Trust scan')}
+        <button class="gra-badge gra-${authenticity?.tone ?? (this.state.loading ? 'loading' : 'idle')}" type="button" aria-expanded="${this.state.open}" aria-haspopup="dialog" aria-label="Repository authenticity" title="${escapeHtml(authenticity?.summary ?? 'Repository authenticity')}">
+          ${shieldIcon()} Authenticity
         </button>
         ${this.state.open ? this.renderPopover(authenticity) : ''}
       </span>
@@ -54,7 +46,23 @@ export class TrustBreakdownWidget {
 
     root.querySelector('.gra-badge')?.addEventListener('click', (event) => {
       event.stopPropagation();
-      this.state = { ...this.state, open: !this.state.open };
+      const open = !this.state.open;
+      this.state = { ...this.state, open };
+      this.render(root);
+      if (open) this.loadAuthenticity(root);
+    });
+  }
+
+  private loadAuthenticity(root: HTMLElement): void {
+    if (this.state.loading || this.state.authenticity) return;
+    this.state = { ...this.state, loading: true };
+    this.render(root);
+    requestAuthenticity(this.repo).then((response) => {
+      if (response.ok && response.type === 'authenticity') {
+        this.state = { ...this.state, authenticity: response.data, loading: false };
+      } else if (!response.ok) {
+        this.state = { ...this.state, authenticity: emptyAuthenticity(this.repo, response.error), loading: false };
+      }
       this.render(root);
     });
   }
@@ -96,12 +104,23 @@ export class TrustBreakdownWidget {
   }
 }
 
-function findStarButtonTarget(): Element | null {
-  return document.querySelector('#repo-stars-counter-star')
-    ?? document.querySelector('a[href$="/stargazers"].social-count')
-    ?? document.querySelector('form[action$="/star"]')
-    ?? document.querySelector('[data-testid="star-button-container"]')
-    ?? document.querySelector('.pagehead-actions');
+function findWatchButtonTarget(): { element: Element; listItem: boolean } | null {
+  const watchControl = document.querySelector('#repository-details-watch-button')
+    ?? Array.from(document.querySelectorAll('.pagehead-actions a, .pagehead-actions button, .pagehead-actions summary'))
+      .find(isWatchControl);
+
+  if (watchControl) {
+    const actionItem = watchControl.closest('li');
+    return actionItem ? { element: actionItem, listItem: true } : { element: watchControl, listItem: false };
+  }
+
+  const firstActionItem = document.querySelector('.pagehead-actions > li');
+  return firstActionItem ? { element: firstActionItem, listItem: true } : null;
+}
+
+function isWatchControl(element: Element): boolean {
+  const label = `${element.getAttribute('aria-label') ?? ''} ${element.textContent ?? ''}`;
+  return /\b(watch|unwatch|notifications?)\b/i.test(label);
 }
 
 function metric(check: RepositoryAuthenticityView['ratios']['forkToStar'], meta: string): string {
@@ -113,12 +132,6 @@ function metric(check: RepositoryAuthenticityView['ratios']['forkToStar'], meta:
       <em>${escapeHtml(check.threshold)}</em>
     </article>
   `;
-}
-
-function badgeLabel(authenticity: RepositoryAuthenticityView): string {
-  if (authenticity.tone === 'suspicious') return 'Trust: suspicious';
-  if (authenticity.tone === 'moderate') return 'Trust: mixed';
-  return 'Trust: healthy';
 }
 
 function formatNumber(value: number): string {
@@ -134,13 +147,13 @@ function shieldIcon(): string {
 }
 
 const styles = `
-  #${ROOT_ID} { display: inline-flex; position: relative; margin-left: 6px; vertical-align: middle; }
-  #${ROOT_ID} * { box-sizing: border-box; }
+  #${AUTHENTICITY_ROOT_ID} { display: inline-flex; position: relative; vertical-align: middle; }
+  #${AUTHENTICITY_ROOT_ID} * { box-sizing: border-box; }
   .gra-wrap { position: relative; display: inline-flex; }
-  .gra-badge { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 999px; padding: 3px 9px; background: var(--bgColor-muted, #f6f8fa); color: var(--fgColor-muted, #57606a); font: 700 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; cursor: pointer; }
+  .gra-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 6px; padding: 5px 12px; background: var(--button-default-bgColor-rest, var(--bgColor-muted, #f6f8fa)); color: var(--button-default-fgColor-rest, var(--fgColor-default, #24292f)); font: 600 14px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; cursor: pointer; }
   .gra-badge svg { width: 14px; height: 14px; }
   .gra-healthy { border-color: color-mix(in srgb, var(--fgColor-success, #1a7f37) 28%, transparent); background: var(--bgColor-success-muted, #dafbe1); color: var(--fgColor-success, #1a7f37); }
-  .gra-moderate, .gra-loading { border-color: color-mix(in srgb, var(--fgColor-attention, #9a6700) 28%, transparent); background: var(--bgColor-attention-muted, #fff8c5); color: var(--fgColor-attention, #9a6700); }
+  .gra-moderate, .gra-loading, .gra-idle { border-color: color-mix(in srgb, var(--fgColor-attention, #9a6700) 28%, transparent); background: var(--bgColor-attention-muted, #fff8c5); color: var(--fgColor-attention, #9a6700); }
   .gra-suspicious { border-color: color-mix(in srgb, var(--fgColor-danger, #cf222e) 28%, transparent); background: var(--bgColor-danger-muted, #ffebe9); color: var(--fgColor-danger, #cf222e); }
   .gra-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 1000; width: min(520px, calc(100vw - 24px)); border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 14px; padding: 14px; background: var(--bgColor-default, #fff); color: var(--fgColor-default, #24292f); box-shadow: 0 16px 36px rgba(31, 35, 40, .18); font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
   .gra-popover header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }

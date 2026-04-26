@@ -16,11 +16,13 @@ export type CacheValidators = {
   lastModified?: string;
 };
 
-export async function githubGet<T>(url: string, validators?: CacheValidators, accept = 'application/vnd.github+json'): Promise<ApiResult<T>> {
+export async function githubGet<T>(url: string, validators?: CacheValidators, accept = 'application/vnd.github+json', githubToken?: string | null): Promise<ApiResult<T>> {
   const headers = new Headers({
     Accept: accept,
     'X-GitHub-Api-Version': '2022-11-28'
   });
+
+  if (githubToken) headers.set('Authorization', `Bearer ${githubToken}`);
 
   if (validators?.etag) headers.set('If-None-Match', validators.etag);
   if (validators?.lastModified) headers.set('If-Modified-Since', validators.lastModified);
@@ -28,12 +30,14 @@ export async function githubGet<T>(url: string, validators?: CacheValidators, ac
   return githubFetch<T>(url, { headers });
 }
 
-export async function githubPost<T>(url: string, body: unknown, accept = 'application/vnd.github+json'): Promise<ApiResult<T>> {
+export async function githubPost<T>(url: string, body: unknown, accept = 'application/vnd.github+json', githubToken?: string | null): Promise<ApiResult<T>> {
   const headers = new Headers({
     Accept: accept,
     'Content-Type': 'application/json',
     'X-GitHub-Api-Version': '2022-11-28'
   });
+
+  if (githubToken) headers.set('Authorization', `Bearer ${githubToken}`);
 
   return githubFetch<T>(url, { method: 'POST', headers, body: JSON.stringify(body) });
 }

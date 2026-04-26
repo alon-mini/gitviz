@@ -228,6 +228,11 @@ export function minimalOpenClawRepoHtml(): string {
         <main>
           <div data-testid="repository-container-header">
             <strong>pjasicek/OpenClaw</strong>
+            <ul class="pagehead-actions">
+              <li><button id="repository-details-watch-button" type="button">Watch</button></li>
+              <li><button id="fork-button" type="button">Fork</button></li>
+              <li><button id="star-button" type="button">Star</button></li>
+            </ul>
           </div>
           <nav class="js-repo-nav"></nav>
         </main>
