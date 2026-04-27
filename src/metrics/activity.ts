@@ -28,12 +28,12 @@ export function buildActivity(input: {
 
     return {
       quality: 'partial',
-      status: 'preparing',
-      headline: 'Preparing activity data',
+      status: 'limited',
+      headline: activityHeadline(0, input.repoPushedDaysAgo),
       weeks: [],
       lastWeekCommits: null,
       lastFourWeeksCommits: null,
-      reason: 'GitHub is generating repository statistics. Try again shortly.'
+      reason: 'GitHub activity statistics are still preparing; using repository recency until commit totals are available.'
     };
   }
 
@@ -110,6 +110,6 @@ function activityFromContributors(contributors: ContributorActivity[] | null | u
     weeks: totals,
     lastWeekCommits,
     lastFourWeeksCommits,
-    reason: 'GitHub commit statistics were still preparing, so activity uses contributor commit totals.'
+    reason: 'GitHub commit activity statistics were still preparing, so activity uses contributor commit totals.'
   };
 }
