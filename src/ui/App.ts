@@ -20,7 +20,7 @@ export type HealthFactor = {
   label: string;
   score: number;
   weight: number;
-  description: string;
+  calculation: string;
 };
 
 export type HealthMetric = {
@@ -316,7 +316,7 @@ export class App {
         ${sectionHeader('Health factors', this.state.authenticity ? 'sampled' : 'partial', this.state.authenticity ? 'Includes authenticity signals.' : 'Authenticity will be folded in when it finishes loading.')}
         <p class="grv-section-copy">${escapeHtml(health.summary)}</p>
         <ul class="grv-factors">
-          ${health.factors.map((factor) => `<li><span><strong>${escapeHtml(factor.label)}</strong><small>${escapeHtml(factor.description)}</small></span><em>${factor.score}/100</em></li>`).join('')}
+          ${health.factors.map((factor) => `<li title="${escapeHtml(factor.calculation)}" aria-label="${escapeHtml(`${factor.label}: ${factor.calculation}`)}"><span><strong>${escapeHtml(factor.label)}</strong><small>${escapeHtml(factor.calculation)}</small></span><em>${factor.score}/100</em></li>`).join('')}
         </ul>
       </section>
     `;
@@ -412,62 +412,62 @@ function healthToneLabel(tone: HealthTone): string {
 }
 
 export function buildHealthMetric(summary: RepoSummaryView, authenticity?: RepositoryAuthenticityView): HealthMetric {
+  const interestScore = scaleLog(summary.stars, 1_000);
+  const reuseScore = scaleLog(summary.forks, 250);
+  const maintenanceRecencyScore = recencyScore(summary.pushedDaysAgo);
+  const releaseHealthScore = releaseScore(summary);
+  const responsivenessHealthScore = responsivenessScore(summary);
+
   const factors: HealthFactor[] = [
     {
       label: 'Interest',
-      score: scaleLog(summary.stars, 1_000),
+      score: interestScore,
       weight: 1,
-      description: `${formatNumber(summary.stars)} public stars`
+      calculation: withWeight(`Stars: ${formatExactNumber(summary.stars)}. Score = log10(${formatExactNumber(summary.stars)} + 1) / log10(1,000 + 1) × 100, clamped to ${interestScore}/100.`, 1)
     },
     {
       label: 'Reuse',
-      score: scaleLog(summary.forks, 250),
+      score: reuseScore,
       weight: 1,
-      description: `${formatNumber(summary.forks)} forks`
-    },
-    {
-      label: 'Watcher engagement',
-      score: summary.stars > 0 ? clamp(Math.round((summary.watchers / summary.stars) / 0.03 * 100)) : scaleLog(summary.watchers, 50),
-      weight: 0.8,
-      description: `${formatNumber(summary.watchers)} true watchers`
+      calculation: withWeight(`Forks: ${formatExactNumber(summary.forks)}. Score = log10(${formatExactNumber(summary.forks)} + 1) / log10(250 + 1) × 100, clamped to ${reuseScore}/100.`, 1)
     },
     {
       label: 'Maintenance recency',
-      score: recencyScore(summary.pushedDaysAgo),
+      score: maintenanceRecencyScore,
       weight: 1.15,
-      description: `Last push ${formatRelativeDays(summary.pushedDaysAgo, 'unavailable')}`
+      calculation: withWeight(recencyCalculation('Last push', summary.pushedDaysAgo, maintenanceRecencyScore), 1.15)
     },
     {
       label: 'Release health',
-      score: releaseScore(summary),
+      score: releaseHealthScore,
       weight: 0.85,
-      description: summary.latestRelease.status === 'available' ? `Latest release ${formatRelativeDays(summary.latestRelease.daysAgo)}` : releaseText(summary)
-    },
-    {
-      label: 'Activity',
-      score: activityScore(summary),
-      weight: 1.15,
-      description: summary.activity.headline
+      calculation: withWeight(releaseCalculation(summary, releaseHealthScore), 0.85)
     },
     {
       label: 'Responsiveness',
-      score: responsivenessScore(summary),
+      score: responsivenessHealthScore,
       weight: 1,
-      description: `${summary.responsiveness.mergedPrCount}/${summary.responsiveness.prSampleSize} PRs merged, ${summary.responsiveness.closedIssueCount}/${summary.responsiveness.issueSampleSize} issues closed`
+      calculation: withWeight(responsivenessCalculation(summary, responsivenessHealthScore), 1)
     }
   ];
 
   if (authenticity) {
+    const authenticityScore = clamp(authenticity.score);
     factors.push({
       label: 'Authenticity',
-      score: clamp(authenticity.score),
+      score: authenticityScore,
       weight: 1.5,
-      description: authenticity.headline
+      calculation: withWeight(`Authenticity scan returned ${authenticityScore}/100 (${authenticity.headline}). Health uses that exact score.`, 1.5)
     });
   }
 
   if (summary.archived) {
-    factors.push({ label: 'Archive status', score: 20, weight: 1.2, description: 'Repository is archived' });
+    factors.push({
+      label: 'Archive status',
+      score: 20,
+      weight: 1.2,
+      calculation: withWeight('Repository is archived, so archive status is capped at 20/100.', 1.2)
+    });
   }
 
   const weightedTotal = factors.reduce((sum, factor) => sum + factor.score * factor.weight, 0);
@@ -494,13 +494,64 @@ function healthHeadline(tone: HealthTone): string {
 
 function healthSummary(summary: RepoSummaryView, authenticity: RepositoryAuthenticityView | undefined, label: string): string {
   const authenticityText = authenticity ? `authenticity ${authenticity.score}/100` : 'authenticity still loading';
-  return `Health is ${label}, combining stars, forks, watchers, maintenance, releases, activity, responsiveness, and ${authenticityText}.`;
+  return `Health is ${label}, combining stars, forks, maintenance, releases, responsiveness, and ${authenticityText}.`;
 }
 
 function healthScoreCopy(hasAuthenticity: boolean): string {
   return hasAuthenticity
     ? 'Composite score from all available repository metrics.'
     : 'Composite score is visible immediately and updates when authenticity finishes loading.';
+}
+
+function recencyCalculation(label: string, days: number | null, score: number): string {
+  if (days === null) return `${label} date is unavailable, so fallback recency score = ${score}/100.`;
+  return `${label}: ${formatRelativeDays(days)} (${days} ${days === 1 ? 'day' : 'days'}). ${recencyBucket(days)} bucket = ${score}/100.`;
+}
+
+function recencyBucket(days: number): string {
+  if (days <= 7) return '≤ 7 days';
+  if (days <= 30) return '≤ 30 days';
+  if (days <= 90) return '≤ 90 days';
+  if (days <= 180) return '≤ 180 days';
+  if (days <= 365) return '≤ 365 days';
+  return '> 365 days';
+}
+
+function releaseCalculation(summary: RepoSummaryView, score: number): string {
+  if (summary.latestRelease.status === 'available') return recencyCalculation('Latest release', summary.latestRelease.daysAgo, score);
+  if (summary.latestRelease.status === 'none') return `No releases were found, so release health fallback score = ${score}/100.`;
+  return `Latest release data is unavailable, so release health fallback score = ${score}/100.`;
+}
+
+function responsivenessCalculation(summary: RepoSummaryView, score: number): string {
+  const responsiveness = summary.responsiveness;
+  const prScore = responsiveness.prSampleSize > 0 ? (responsiveness.mergedPrCount / responsiveness.prSampleSize) * 100 : 45;
+  const issueScore = responsiveness.issueSampleSize > 0 ? (responsiveness.closedIssueCount / responsiveness.issueSampleSize) * 100 : 45;
+  const mergeSpeed = mergeSpeedScore(responsiveness.medianMergeHours);
+  const prText = responsiveness.prSampleSize > 0
+    ? `Merged PRs: ${responsiveness.mergedPrCount}/${responsiveness.prSampleSize} = ${formatPercent(prScore / 100)} (${formatFormulaNumber(prScore)}/100)`
+    : `Merged PR sample is empty, so PR score fallback = ${formatFormulaNumber(prScore)}/100`;
+  const issueText = responsiveness.issueSampleSize > 0
+    ? `Closed issues: ${responsiveness.closedIssueCount}/${responsiveness.issueSampleSize} = ${formatPercent(issueScore / 100)} (${formatFormulaNumber(issueScore)}/100)`
+    : `Closed issue sample is empty, so issue score fallback = ${formatFormulaNumber(issueScore)}/100`;
+
+  return `${prText}; ${issueText}; ${mergeSpeed.calculation}; weighted score = round(${formatFormulaNumber(prScore)} × 0.35 + ${formatFormulaNumber(issueScore)} × 0.35 + ${mergeSpeed.score} × 0.30) = ${score}/100.`;
+}
+
+function mergeSpeedScore(hours: number | null): { score: number; calculation: string } {
+  if (hours === null) return { score: 50, calculation: 'Median merge time is unavailable, so merge-speed score = 50/100' };
+  if (hours <= 24) return { score: 100, calculation: `Median merge time: ${formatDurationHours(hours)} (≤ 24 hr bucket = 100/100)` };
+  if (hours <= 72) return { score: 75, calculation: `Median merge time: ${formatDurationHours(hours)} (≤ 72 hr bucket = 75/100)` };
+  if (hours <= 168) return { score: 55, calculation: `Median merge time: ${formatDurationHours(hours)} (≤ 168 hr bucket = 55/100)` };
+  return { score: 30, calculation: `Median merge time: ${formatDurationHours(hours)} (> 168 hr bucket = 30/100)` };
+}
+
+function withWeight(calculation: string, weight: number): string {
+  return `${calculation} Health weight: ${formatWeight(weight)}.`;
+}
+
+function formatWeight(weight: number): string {
+  return Number.isInteger(weight) ? `${weight}` : weight.toFixed(2).replace(/0$/, '');
 }
 
 function scaleLog(value: number, strongAt: number): number {
@@ -524,32 +575,12 @@ function releaseScore(summary: RepoSummaryView): number {
   return 35;
 }
 
-function activityScore(summary: RepoSummaryView): number {
-  if (summary.activity.status === 'preparing') return 0;
-  if (summary.activity.status === 'limited') return 45;
-  if (summary.activity.status !== 'available') return 25;
-  const commits = summary.activity.lastFourWeeksCommits ?? 0;
-  if (commits >= 20) return 100;
-  if (commits >= 8) return 80;
-  if (commits >= 3) return 60;
-  if (commits >= 1) return 40;
-  return 20;
-}
-
 function responsivenessScore(summary: RepoSummaryView): number {
   const responsiveness = summary.responsiveness;
   const prScore = responsiveness.prSampleSize > 0 ? (responsiveness.mergedPrCount / responsiveness.prSampleSize) * 100 : 45;
   const issueScore = responsiveness.issueSampleSize > 0 ? (responsiveness.closedIssueCount / responsiveness.issueSampleSize) * 100 : 45;
-  const mergeSpeedScore = responsiveness.medianMergeHours === null
-    ? 50
-    : responsiveness.medianMergeHours <= 24
-      ? 100
-      : responsiveness.medianMergeHours <= 72
-        ? 75
-        : responsiveness.medianMergeHours <= 168
-          ? 55
-          : 30;
-  return clamp(Math.round(prScore * 0.35 + issueScore * 0.35 + mergeSpeedScore * 0.3));
+  const mergeSpeed = mergeSpeedScore(responsiveness.medianMergeHours).score;
+  return clamp(Math.round(prScore * 0.35 + issueScore * 0.35 + mergeSpeed * 0.3));
 }
 
 function clamp(value: number): number {
@@ -579,6 +610,18 @@ function formatDurationHours(hours: number | null): string {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: value >= 10_000 ? 'compact' : 'standard' }).format(value);
+}
+
+function formatExactNumber(value: number): string {
+  return new Intl.NumberFormat(undefined, { notation: 'standard' }).format(value);
+}
+
+function formatPercent(value: number, fractionDigits = 1): string {
+  return `${(value * 100).toFixed(fractionDigits)}%`;
+}
+
+function formatFormulaNumber(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
 }
 
 function formatDateTime(value: string): string {
