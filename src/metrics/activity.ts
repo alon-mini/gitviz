@@ -6,13 +6,26 @@ export type CommitActivityWeek = {
   days: number[];
 };
 
+export type ContributorActivity = {
+  weeks?: Array<{
+    c?: number;
+    a?: number;
+    d?: number;
+    w?: number;
+  }>;
+};
+
 export function buildActivity(input: {
   status: number;
   weeks: CommitActivityWeek[] | null;
   repoPushedDaysAgo: number | null;
+  fallbackContributorActivity?: ContributorActivity[] | null;
   error?: string;
 }): RepoSummaryView['activity'] {
   if (input.status === 202) {
+    const fallback = activityFromContributors(input.fallbackContributorActivity, input.repoPushedDaysAgo);
+    if (fallback) return fallback;
+
     return {
       quality: 'partial',
       status: 'preparing',
@@ -67,4 +80,36 @@ function activityHeadline(lastFourWeeksCommits: number, pushedDaysAgo: number | 
   if (lastFourWeeksCommits > 0) return 'Active this month';
   if (pushedDaysAgo !== null && pushedDaysAgo <= 30) return 'Recently pushed';
   return 'Quiet recently';
+}
+
+function activityFromContributors(contributors: ContributorActivity[] | null | undefined, repoPushedDaysAgo: number | null): RepoSummaryView['activity'] | null {
+  if (!contributors?.length) return null;
+
+  const weeklyTotals = new Map<number, number>();
+  for (const contributor of contributors) {
+    for (const week of contributor.weeks ?? []) {
+      const weekStart = week.w;
+      if (typeof weekStart !== 'number') continue;
+      weeklyTotals.set(weekStart, (weeklyTotals.get(weekStart) ?? 0) + (week.c ?? 0));
+    }
+  }
+
+  if (!weeklyTotals.size) return null;
+
+  const totals = Array.from(weeklyTotals.entries())
+    .sort(([leftWeek], [rightWeek]) => leftWeek - rightWeek)
+    .slice(-52)
+    .map(([, total]) => total);
+  const lastWeekCommits = totals.at(-1) ?? 0;
+  const lastFourWeeksCommits = totals.slice(-4).reduce((sum, value) => sum + value, 0);
+
+  return {
+    quality: 'sampled',
+    status: 'available',
+    headline: activityHeadline(lastFourWeeksCommits, repoPushedDaysAgo),
+    weeks: totals,
+    lastWeekCommits,
+    lastFourWeeksCommits,
+    reason: 'GitHub commit statistics were still preparing, so activity uses contributor commit totals.'
+  };
 }

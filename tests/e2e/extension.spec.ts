@@ -26,22 +26,25 @@ test.describe('GitHub Repo Visibility extension', () => {
       await expect(page.locator('#repository-container-header').getByText('pjasicek/OpenClaw')).toBeVisible();
 
       const actionLabels = await page.locator('.pagehead-actions > li').evaluateAll((items) => items.map((item) => item.querySelector('button, a, summary')?.textContent?.trim().replace(/\s+/g, ' ')));
-      expect(actionLabels).toEqual(['Watch', 'Real Star 84/100', 'Fork', 'Star']);
+      expect(actionLabels).toEqual(['Watch', 'Health 84/100', 'Fork', 'Star']);
       await expect(page.locator('#star-button')).toBeVisible();
-      const realStarButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Real Star/ });
-      await expect(realStarButton).toBeVisible();
-      await expect(realStarButton).toContainText('84/100');
-      await realStarButton.click();
-      const realStarDialog = page.getByRole('dialog', { name: 'Real Star panel' });
-      await expect(realStarDialog.getByText('Real Star repository signals')).toBeVisible();
-      await expect(realStarDialog).toHaveCSS('position', 'fixed');
-      await expect(realStarDialog).toHaveCSS('resize', 'both');
+      const healthButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Health/ });
+      const authenticityButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Authenticity/ });
+      await expect(healthButton).toBeVisible();
+      await expect(healthButton).toContainText('84/100');
+      await expect(authenticityButton).toBeVisible();
+      await expect(authenticityButton).toContainText('100/100');
+      await healthButton.click();
+      const healthDialog = page.getByRole('dialog', { name: 'Health panel' });
+      await expect(healthDialog.getByText('Health repository signals')).toBeVisible();
+      await expect(healthDialog).toHaveCSS('position', 'fixed');
+      await expect(healthDialog).toHaveCSS('resize', 'both');
 
-      const panel = realStarDialog.locator('.gra-panel-root');
+      const panel = healthDialog.locator('.gra-panel-root');
       await expect(panel).toBeVisible();
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
       await expect(panel.getByText('Healthy repository authenticity signals')).toBeVisible();
-      await expect(panel.getByLabel('Real Star: 84/100')).toBeVisible();
+      await expect(panel.getByLabel('Health: 84/100')).toBeVisible();
       await expect(panel.getByText('Stars', { exact: true })).toBeVisible();
       await expect(panel.getByLabel('Stars: 1,234')).toBeVisible();
       await expect(panel.getByText('Watchers', { exact: true })).toBeVisible();
@@ -65,14 +68,14 @@ test.describe('GitHub Repo Visibility extension', () => {
       });
 
       await navigateToOpenClawRepo(page);
-      const realStarButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Real Star/ });
-      await expect(realStarButton).toBeVisible();
-      await realStarButton.click();
-      const panel = page.getByRole('dialog', { name: 'Real Star panel' }).locator('.gra-panel-root');
+      const healthButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Health/ });
+      await expect(healthButton).toBeVisible();
+      await healthButton.click();
+      const panel = page.getByRole('dialog', { name: 'Health panel' }).locator('.gra-panel-root');
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
       await panel.getByRole('button', { name: 'Show details' }).click();
 
-      await expect(panel.getByText('Real Star factors')).toBeVisible();
+      await expect(panel.getByText('Health factors')).toBeVisible();
       await expect(panel.getByText(/stars in 90 days/)).toBeVisible();
       await expect(panel.getByText(/pages loaded/)).toBeVisible();
     } finally {
@@ -95,11 +98,11 @@ test.describe('GitHub Repo Visibility extension', () => {
 
       await navigateToLiveOpenClawRepo(page);
 
-      const realStarButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Real Star/ });
-      await expect(realStarButton).toBeVisible({ timeout: 20_000 });
-      await realStarButton.click();
+      const healthButton = page.locator('#github-repo-visibility-action-root').getByRole('button', { name: /Health/ });
+      await expect(healthButton).toBeVisible({ timeout: 20_000 });
+      await healthButton.click();
 
-      const panel = page.getByRole('dialog', { name: 'Real Star panel' }).locator('.gra-panel-root');
+      const panel = page.getByRole('dialog', { name: 'Health panel' }).locator('.gra-panel-root');
       await expect(panel).toBeVisible({ timeout: 20_000 });
       await expect(panel.getByRole('heading', { name: 'pjasicek/OpenClaw' })).toBeVisible();
       await expect(panel.locator('.grv-panel')).toHaveAttribute('data-state', 'ready', { timeout: 20_000 });
@@ -110,7 +113,7 @@ test.describe('GitHub Repo Visibility extension', () => {
         await expect(panel.getByText('Stars', { exact: true })).toBeVisible();
         await expect(panel.getByText('Forks', { exact: true })).toBeVisible();
         await expect(panel.getByText('Watchers', { exact: true })).toBeVisible();
-        await expect(panel.getByText('Activity', { exact: true })).toBeVisible();
+        await expect(panel.getByLabel('Activity snapshot').getByText('Activity', { exact: true })).toBeVisible();
       }
       expect(apiRequests.some((url) => url === 'https://api.github.com/repos/pjasicek/OpenClaw')).toBe(true);
     } finally {

@@ -3,7 +3,7 @@ import { githubGet } from '../api/github';
 import { getCache, getValidators, putCache } from '../cache/indexed-db';
 import { getCachedAuthenticity, putCachedAuthenticity } from '../cache/local-authenticity';
 import { getGitHubToken, getRepoRetryAfter, setRepoRetryAfter } from '../cache/local-meta';
-import { buildActivity, type CommitActivityWeek } from '../metrics/activity';
+import { buildActivity, type CommitActivityWeek, type ContributorActivity } from '../metrics/activity';
 import { AuthenticityRateLimitError, buildRepositoryAuthenticity, fetchStargazerSample } from '../metrics/authenticity';
 import { buildResponsiveness, type GitHubIssue, type GitHubPullRequest } from '../metrics/responsiveness';
 import { aggregateStars, type Stargazer } from '../metrics/stars';
@@ -100,8 +100,11 @@ async function getSummary(repo: RepoRef): Promise<RepoSummaryView> {
     githubGet<GitHubPullRequest[]>(endpoints.pulls(repo.owner, repo.repo)),
     githubGet<GitHubIssue[]>(endpoints.issues(repo.owner, repo.repo))
   ]);
+  const contributorActivityResult = activityResult.status === 202
+    ? await githubGet<ContributorActivity[]>(endpoints.contributors(repo.owner, repo.repo))
+    : null;
 
-  for (const result of [releaseResult, communityResult, activityResult, pullsResult, issuesResult]) {
+  for (const result of [releaseResult, communityResult, activityResult, contributorActivityResult, pullsResult, issuesResult]) {
     if (result?.rateLimited) await rememberRateLimit(repo, result.retryAfterSeconds);
   }
 
@@ -127,6 +130,7 @@ async function getSummary(repo: RepoRef): Promise<RepoSummaryView> {
     status: activityResult.status,
     weeks: activityResult.ok ? activityResult.data : null,
     repoPushedDaysAgo: base.pushedDaysAgo,
+    fallbackContributorActivity: contributorActivityResult?.ok ? contributorActivityResult.data : null,
     error: activityResult.error
   });
 

@@ -14,22 +14,22 @@ export type AppState = {
   error?: string;
 };
 
-export type RealStarTone = 'strong' | 'mixed' | 'weak';
+export type HealthTone = 'strong' | 'mixed' | 'weak';
 
-export type RealStarFactor = {
+export type HealthFactor = {
   label: string;
   score: number;
   weight: number;
   description: string;
 };
 
-export type RealStarMetric = {
+export type HealthMetric = {
   score: number;
   label: string;
-  tone: RealStarTone;
+  tone: HealthTone;
   headline: string;
   summary: string;
-  factors: RealStarFactor[];
+  factors: HealthFactor[];
 };
 
 export class App {
@@ -113,7 +113,7 @@ export class App {
           <div class="grv-brand">
             <span class="grv-logo" aria-hidden="true">${visibilityIcon()}</span>
             <div class="grv-title-stack">
-              <p class="grv-eyebrow">Real Star</p>
+              <p class="grv-eyebrow">Health</p>
               <h2>${escapeHtml(repoName)}</h2>
               <p class="grv-subtitle">Live GitHub signals summarized into an interaction-quality score.</p>
               <div class="grv-header-meta" aria-label="Data source and privacy details">
@@ -140,21 +140,21 @@ export class App {
   }
 
   private renderOverview(summary: RepoSummaryView): string {
-    const realStar = buildRealStarMetric(summary, this.state.authenticity);
+    const health = buildHealthMetric(summary, this.state.authenticity);
     return `
-      <section class="grv-overview" aria-label="Real Star overview">
+      <section class="grv-overview" aria-label="Health overview">
         <div class="grv-overview-copy">
-          <p class="grv-kicker">Real Star snapshot</p>
-          <h3>${escapeHtml(realStar.headline)}</h3>
-          <p>${escapeHtml(realStar.summary)}</p>
+          <p class="grv-kicker">Health snapshot</p>
+          <h3>${escapeHtml(health.headline)}</h3>
+          <p>${escapeHtml(health.summary)}</p>
         </div>
-        <div class="grv-score-card" aria-label="Real Star score ${realStar.score} out of 100">
-          <div class="grv-score-ring" style="--grv-score: ${realStar.score}" aria-hidden="true">
-            <span>${realStar.score}</span>
+        <div class="grv-score-card" aria-label="Health score ${health.score} out of 100">
+          <div class="grv-score-ring" style="--grv-score: ${health.score}" aria-hidden="true">
+            <span>${health.score}</span>
           </div>
           <div>
-            <strong>Real Star</strong>
-            <p>${escapeHtml(realStarScoreCopy(Boolean(this.state.authenticity)))}</p>
+            <strong>Health</strong>
+            <p>${escapeHtml(healthScoreCopy(Boolean(this.state.authenticity)))}</p>
           </div>
         </div>
         <div class="grv-overview-stats" aria-label="Key repository signals">
@@ -185,7 +185,7 @@ export class App {
 
     const summary = this.state.summary;
     if (!summary) return '';
-    const realStar = buildRealStarMetric(summary, this.state.authenticity);
+    const health = buildHealthMetric(summary, this.state.authenticity);
 
     return `
       <div class="grv-content">
@@ -197,7 +197,7 @@ export class App {
           ${this.renderBadges(summary)}
         </div>
         <section class="grv-grid" aria-label="Repository summary metrics">
-          ${metric('Real Star', realStar.label, `Composite score from ${realStar.factors.length} available repository signals.`, realStarToneLabel(realStar.tone))}
+          ${metric('Health', health.label, `Composite score from ${health.factors.length} available repository signals.`, healthToneLabel(health.tone))}
           ${metric('Stars', formatNumber(summary.stars), 'Exact public stargazer count.', 'Public interest')}
           ${metric('Forks', formatNumber(summary.forks), 'Exact public fork count.', 'Reuse signal')}
           ${metric('Watchers', formatNumber(summary.watchers), 'Uses subscribers_count, not watchers_count, so it reflects true watchers.', 'Subscriber count')}
@@ -300,7 +300,7 @@ export class App {
         ${this.state.starLoading ? '<p class="grv-section-copy">Loading recent star trend...</p>' : ''}
         ${stars ? `<p class="grv-section-copy">${formatNumber(stars.totalInWindow)} stars in ${stars.days} days (${stars.quality}; ${stars.pagesLoaded} pages loaded).</p><div class="grv-chart-card">${renderSparkline(stars.buckets.map((bucket) => bucket.count), 'Recent daily star trend')}</div>${stars.message ? `<p class="grv-muted">${escapeHtml(stars.message)}</p>` : ''}` : '<p class="grv-muted">Star trend loads only after expansion to preserve the anonymous request budget.</p>'}
       </section>
-      ${this.renderRealStarFactors(summary)}
+      ${this.renderHealthFactors(summary)}
     `;
   }
 
@@ -309,14 +309,14 @@ export class App {
     return `<div class="grv-notices" aria-label="Repository notices">${summary.notices.map((notice) => `<p class="grv-notice grv-notice-${notice.kind}" role="${notice.kind === 'error' || notice.kind === 'rate_limited' ? 'alert' : 'status'}">${escapeHtml(notice.message)}</p>`).join('')}</div>`;
   }
 
-  private renderRealStarFactors(summary: RepoSummaryView): string {
-    const realStar = buildRealStarMetric(summary, this.state.authenticity);
+  private renderHealthFactors(summary: RepoSummaryView): string {
+    const health = buildHealthMetric(summary, this.state.authenticity);
     return `
-      <section class="grv-section" aria-label="Real Star factors">
-        ${sectionHeader('Real Star factors', this.state.authenticity ? 'sampled' : 'partial', this.state.authenticity ? 'Includes authenticity signals.' : 'Authenticity will be folded in when it finishes loading.')}
-        <p class="grv-section-copy">${escapeHtml(realStar.summary)}</p>
+      <section class="grv-section" aria-label="Health factors">
+        ${sectionHeader('Health factors', this.state.authenticity ? 'sampled' : 'partial', this.state.authenticity ? 'Includes authenticity signals.' : 'Authenticity will be folded in when it finishes loading.')}
+        <p class="grv-section-copy">${escapeHtml(health.summary)}</p>
         <ul class="grv-factors">
-          ${realStar.factors.map((factor) => `<li><span><strong>${escapeHtml(factor.label)}</strong><small>${escapeHtml(factor.description)}</small></span><em>${factor.score}/100</em></li>`).join('')}
+          ${health.factors.map((factor) => `<li><span><strong>${escapeHtml(factor.label)}</strong><small>${escapeHtml(factor.description)}</small></span><em>${factor.score}/100</em></li>`).join('')}
         </ul>
       </section>
     `;
@@ -326,8 +326,9 @@ export class App {
 type ChipTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 
 function authenticityMetric(check: RepositoryAuthenticityView['ratios']['forkToStar'], meta: string): string {
+  const isFlagged = check.suspicious || check.healthy === false;
   return `
-    <article class="grv-trust-metric" data-flagged="${check.suspicious}">
+    <article class="grv-trust-metric" data-flagged="${isFlagged}">
       <span>${escapeHtml(check.label)}</span>
       <strong>${escapeHtml(check.formattedValue)}</strong>
       <small>${escapeHtml(meta)}</small>
@@ -404,14 +405,14 @@ function cacheLabel(cacheState: RepoSummaryView['cacheState']): string {
   return 'New scan';
 }
 
-function realStarToneLabel(tone: RealStarTone): string {
+function healthToneLabel(tone: HealthTone): string {
   if (tone === 'strong') return 'Strong';
   if (tone === 'mixed') return 'Mixed';
   return 'Weak';
 }
 
-export function buildRealStarMetric(summary: RepoSummaryView, authenticity?: RepositoryAuthenticityView): RealStarMetric {
-  const factors: RealStarFactor[] = [
+export function buildHealthMetric(summary: RepoSummaryView, authenticity?: RepositoryAuthenticityView): HealthMetric {
+  const factors: HealthFactor[] = [
     {
       label: 'Interest',
       score: scaleLog(summary.stars, 1_000),
@@ -472,7 +473,7 @@ export function buildRealStarMetric(summary: RepoSummaryView, authenticity?: Rep
   const weightedTotal = factors.reduce((sum, factor) => sum + factor.score * factor.weight, 0);
   const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0);
   const score = clamp(Math.round(weightedTotal / totalWeight));
-  const tone: RealStarTone = score >= 72 ? 'strong' : score >= 45 ? 'mixed' : 'weak';
+  const tone: HealthTone = score >= 72 ? 'strong' : score >= 45 ? 'mixed' : 'weak';
   const label = `${score}/100`;
 
   return {
@@ -480,23 +481,23 @@ export function buildRealStarMetric(summary: RepoSummaryView, authenticity?: Rep
     label,
     tone,
     factors,
-    headline: realStarHeadline(tone),
-    summary: realStarSummary(summary, authenticity, label)
+    headline: healthHeadline(tone),
+    summary: healthSummary(summary, authenticity, label)
   };
 }
 
-function realStarHeadline(tone: RealStarTone): string {
-  if (tone === 'strong') return 'Strong Real Star signal';
-  if (tone === 'mixed') return 'Mixed Real Star signal';
-  return 'Weak Real Star signal';
+function healthHeadline(tone: HealthTone): string {
+  if (tone === 'strong') return 'Strong Health signal';
+  if (tone === 'mixed') return 'Mixed Health signal';
+  return 'Weak Health signal';
 }
 
-function realStarSummary(summary: RepoSummaryView, authenticity: RepositoryAuthenticityView | undefined, label: string): string {
+function healthSummary(summary: RepoSummaryView, authenticity: RepositoryAuthenticityView | undefined, label: string): string {
   const authenticityText = authenticity ? `authenticity ${authenticity.score}/100` : 'authenticity still loading';
-  return `Real Star is ${label}, combining stars, forks, watchers, maintenance, releases, activity, responsiveness, and ${authenticityText}.`;
+  return `Health is ${label}, combining stars, forks, watchers, maintenance, releases, activity, responsiveness, and ${authenticityText}.`;
 }
 
-function realStarScoreCopy(hasAuthenticity: boolean): string {
+function healthScoreCopy(hasAuthenticity: boolean): string {
   return hasAuthenticity
     ? 'Composite score from all available repository metrics.'
     : 'Composite score is visible immediately and updates when authenticity finishes loading.';
@@ -524,7 +525,7 @@ function releaseScore(summary: RepoSummaryView): number {
 }
 
 function activityScore(summary: RepoSummaryView): number {
-  if (summary.activity.status === 'preparing') return 55;
+  if (summary.activity.status === 'preparing') return 0;
   if (summary.activity.status === 'limited') return 45;
   if (summary.activity.status !== 'available') return 25;
   const commits = summary.activity.lastFourWeeksCommits ?? 0;
@@ -606,7 +607,7 @@ function shieldIcon(): string {
 
 function metricIcon(label: string): string {
   const icons: Record<string, string> = {
-    'Real Star': '<svg viewBox="0 0 16 16" focusable="false"><path d="m8 1.8 1.72 3.48 3.84.56-2.78 2.7.66 3.82L8 10.55l-3.44 1.81.66-3.82-2.78-2.7 3.84-.56L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg>',
+    'Health': '<svg viewBox="0 0 16 16" focusable="false"><path d="m8 1.8 1.72 3.48 3.84.56-2.78 2.7.66 3.82L8 10.55l-3.44 1.81.66-3.82-2.78-2.7 3.84-.56L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg>',
     Stars: '<svg viewBox="0 0 16 16" focusable="false"><path d="m8 1.8 1.72 3.48 3.84.56-2.78 2.7.66 3.82L8 10.55l-3.44 1.81.66-3.82-2.78-2.7 3.84-.56L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/></svg>',
     Forks: '<svg viewBox="0 0 16 16" focusable="false"><path d="M5 3.25a1.75 1.75 0 1 1-2.2 1.68A1.75 1.75 0 0 1 5 3.25Zm6 0a1.75 1.75 0 1 1-1.75 1.75A1.75 1.75 0 0 1 11 3.25ZM5 12.75a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5Zm0-3.5V6.75m6-1.75v1.5A2.5 2.5 0 0 1 8.5 9H5" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     Watchers: visibilityIcon(),

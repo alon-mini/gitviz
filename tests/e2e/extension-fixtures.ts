@@ -186,8 +186,8 @@ export async function navigateToOpenClawRepo(page: Page): Promise<void> {
           summary: 'Core ratios and sampled stargazer accounts look normal (100 recent stargazers sampled).',
           counts: { stars: 1234, forks: 56, watchers: 7 },
           ratios: {
-            forkToStar: { label: 'Fork-to-star ratio', value: 0.045, formattedValue: '0.045', threshold: '< 5.0% suspicious; 10%-20% healthy', suspicious: false, healthy: false },
-            watcherToStar: { label: 'Watcher-to-star ratio', value: 0.0057, formattedValue: '0.0057', threshold: '< 0.1% suspicious; 0.5%-3% healthy', suspicious: false, healthy: true }
+            forkToStar: { label: 'Fork-to-star ratio', value: 0.045, formattedValue: '4.5%', threshold: '< 5.0% suspicious; 10%-20% healthy', suspicious: false, healthy: false },
+            watcherToStar: { label: 'Watcher-to-star ratio', value: 0.0057, formattedValue: '0.57%', threshold: '< 0.1% suspicious; 0.5%-3% healthy', suspicious: false, healthy: true }
           },
           sample: {
             requested: 100,

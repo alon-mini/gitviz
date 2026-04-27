@@ -233,7 +233,7 @@ async function fetchRestStargazerSample(repo: RepoRef, sampleSize: number, githu
 }
 
 function ratioCheck(label: string, value: number, threshold: string, suspicious: boolean, healthy: boolean): RepositoryAuthenticityView['ratios']['forkToStar'] {
-  return { label, value, formattedValue: formatRatio(value), threshold, suspicious, healthy };
+  return { label, value, formattedValue: formatPercent(value, value < 0.01 ? 2 : 1), threshold, suspicious, healthy };
 }
 
 function percentCheck(label: string, value: number, threshold: string, suspicious: boolean): RepositoryAuthenticityView['sample']['zeroFollowers'] {
@@ -251,10 +251,6 @@ function summaryForTone(tone: RepositoryAuthenticityView['tone'], flags: number,
   if (tone === 'suspicious') return `Multiple core ratios and sampled-account checks are flagged (${sampleText}).`;
   if (tone === 'moderate') return `${flags} authenticity check${flags === 1 ? '' : 's'} flagged; review the breakdown (${sampleText}).`;
   return `Core ratios and sampled stargazer accounts look normal (${sampleText}).`;
-}
-
-function formatRatio(value: number): string {
-  return value.toFixed(value < 0.01 ? 4 : 3);
 }
 
 function formatPercent(value: number, fractionDigits: number): string {

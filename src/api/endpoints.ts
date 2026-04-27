@@ -5,6 +5,7 @@ export const endpoints = {
   repo: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
   community: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/community/profile`,
   commitActivity: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/stats/commit_activity`,
+  contributors: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/stats/contributors`,
   latestRelease: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases/latest`,
   pulls: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls?state=closed&sort=updated&direction=desc&per_page=100`,
   issues: (owner: string, repo: string) => `${BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues?state=closed&sort=updated&direction=desc&per_page=100`,

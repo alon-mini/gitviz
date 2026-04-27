@@ -11,11 +11,11 @@ function boot(): void {
   const key = `${repo.owner}/${repo.repo}`;
   const existingAction = document.getElementById(VISIBILITY_ACTION_ROOT_ID);
   if (key !== lastRepoKey && existingAction) existingAction.remove();
-  const realStarActionMounted = Boolean(document.getElementById(VISIBILITY_ACTION_ROOT_ID));
-  if (key === lastRepoKey && realStarActionMounted) return;
+  const visibilityActionMounted = Boolean(document.getElementById(VISIBILITY_ACTION_ROOT_ID));
+  if (key === lastRepoKey && visibilityActionMounted) return;
   lastRepoKey = key;
 
-  if (!realStarActionMounted) new VisibilityActionWidget(repo).mount();
+  if (!visibilityActionMounted) new VisibilityActionWidget(repo).mount();
 }
 
 boot();
